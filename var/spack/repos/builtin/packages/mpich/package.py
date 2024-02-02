@@ -96,6 +96,7 @@ supported, and netmod is ignored if device is ch3:sock.""",
     )
     variant("argobots", default=False, description="Enable Argobots support")
     variant("fortran", default=True, description="Enable Fortran support")
+    variant("level_zero", default=False, description="Enable Level Zero support")
 
     variant(
         "vci",
@@ -120,6 +121,8 @@ supported, and netmod is ignored if device is ch3:sock.""",
     depends_on("yaksa", when="@4.0: device=ch4 datatype-engine=yaksa")
     depends_on("yaksa+cuda", when="+cuda ^yaksa")
     depends_on("yaksa+rocm", when="+rocm ^yaksa")
+    depends_on("yaksa+level_zero", when="+level_zero ^yaksa")
+    depends_on("hwloc+oneapi-level-zero", when="+level_zero +hwloc")
     conflicts("datatype-engine=yaksa", when="device=ch3")
     conflicts("datatype-engine=yaksa", when="device=ch3:sock")
 
@@ -141,6 +144,9 @@ supported, and netmod is ignored if device is ch3:sock.""",
     conflicts("+rocm", when="device=ch3")
     conflicts("+rocm", when="device=ch3:sock")
     conflicts("+cuda", when="+rocm", msg="CUDA must be disabled to support ROCm")
+    conflicts("+level_zero", when="@:3.3")
+    conflicts("+level_zero", when="device=ch3")
+    conflicts("+level_zero", when="device=ch3:sock")
 
     provides("mpi@:4.0")
     provides("mpi@:3.1", when="@:3.2")
@@ -306,6 +312,9 @@ supported, and netmod is ignored if device is ch3:sock.""",
 
     # see https://github.com/pmodels/mpich/pull/5031
     conflicts("%clang@:7", when="@3.4:3.4.1")
+
+    # building with level zero requires level zero loader
+    depends_on("oneapi-level-zero", when="+level_zero")
 
     @classmethod
     def determine_version(cls, exe):
@@ -572,6 +581,11 @@ supported, and netmod is ignored if device is ch3:sock.""",
             config_args.append("--with-hip={0}".format(spec["hip"].prefix))
         else:
             config_args.append("--without-hip")
+
+        if "+level_zero" in spec:
+            config_args.append(f"--with-ze={spec['oneapi-level-zero'].prefix}")
+        else:
+            config_args.append("--without-ze")
 
         # setup device configuration
         device_config = ""
